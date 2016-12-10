@@ -77,22 +77,21 @@ class migration_1481366582_my_first_migration extends MigrationObject
 
     function apply()
     {
-        // todo your code
-        
+        // todo your code here
         // examples:
-        // $this->createTable('test', ['`id` int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT', '`str` varchar(120) NOT NULL', '`num` float NOT NULL']);
-        // $this->addColumn('test', 'column',  'float NOT NULL');
-        // $row = $this->query("SELECT * FROM `test` WHERE `id` > :id", [':id' => 2], self::ROW);
-
-        return true; // if the method doesn't return true, then migration is failed
+        // \$this->createTable('test', ['`id` int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT', '`str` varchar(120) NOT NULL', '`num` float NOT NULL']);
+        // \$this->addColumn('test', 'column',  'float NOT NULL');
+        // \$this->renameColumn('test', 'column', 'created_at');
+        // \$this->retypeColumn('test', 'created_at', 'int(11)', false, '1481383022');
+        // if the method doesn't return true, then migration is failed
+        return true;
     }
 
     function revert()
     {
-        // todo your code
+        // todo your code here
         // example
-        // $this->dropTable('test');
-
+        // \$this->dropTable('test');
         return true;
     }
 
