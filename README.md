@@ -11,7 +11,7 @@ Install
 Run in root folder of project:
 
 ```
-$ php -r "file_get_contents('https://raw.githubusercontent.com/active-programming/migra-php/master/migra', 'migra')"
+$ php -r "file_put_contents('migra', file_get_contents('https://raw.githubusercontent.com/active-programming/migra-php/master/migra'));"
 ```
 
 Commands
