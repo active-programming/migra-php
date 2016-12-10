@@ -8,7 +8,7 @@
  * Don't ask about features, just do pull request
  */
 
-define('MPATH', __DIR__);
+define('MPATH', getcwd());
 
 /**
  * @class MigraPhp

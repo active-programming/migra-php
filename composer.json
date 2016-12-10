@@ -1,0 +1,24 @@
+{
+  "name": "adamasantares/migra-php",
+  "description": "A primitive script for db migrations",
+  "keywords": ["php", "mysql", "migrations"],
+  "homepage": "https://github.com/active-programming/migra-php#readme",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Konstantin Kutsevalov",
+      "email": "konstantin@kutsevalov.name"
+    }
+  ],
+  "require": {
+    "php": ">=7.0.0"
+  },
+  "bin": ["migra"],
+  "config": {
+    "bin-dir": "./"
+  },
+  "scripts": {
+    "post-package-install": ["chmod +x ./migra"]
+  }
+}
