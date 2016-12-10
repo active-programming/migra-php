@@ -319,11 +319,12 @@ class MigraPhp
         $lines = file($file);
         foreach ($lines as $line) {
             if (empty(trim($line)) || substr($line, 0, 1) == '#') continue;
-            $line = explode(';', $line); // time;name;status
+            $line = explode(';', $line); // time;name;status;author
             $this->migrations[ trim($line[1]) ] = [
                 'time' => trim($line[0]),
                 'name' => trim($line[1]),
                 'status' => trim($line[2]),
+                'author' => trim($line[3]),
             ];
         }
         // search new files
@@ -334,10 +335,19 @@ class MigraPhp
                 $name = str_replace('.php', '', basename($file));
                 $time = explode('_', $name)[0];
                 if (!isset($this->migrations[$name])) {
+                    $author = 'Unknown';
+                    $content = file_get_contents($file);
+                    if (preg_match("/\\@author\\s+([^\n]+)/i", $content, $match)) {
+                        $match = trim($match[1]);
+                        if (!empty($match)) {
+                            $author = $match;
+                        }
+                    }
                     $this->migrations[$name] = [
                         'time' => $time,
                         'name' => $name,
                         'status' => self::STATUS_INACTIVE,
+                        'author' => $author
                     ];
                     $newMigrations = true;
                 }
@@ -368,6 +378,7 @@ class MigraPhp
             'time' => $time,
             'name' => $name,
             'status' => self::STATUS_INACTIVE,
+            'author' => $this->username,
         ];
         $this->saveHistory();
         ech("   Migration '{$name}' created ", 'cyan');
@@ -467,22 +478,24 @@ class MigraPhp
         $migrations = [];
         $revers = array_reverse($this->migrations);
         foreach ($revers as $name => $migration) {
-            if ($migration['status'] == self::STATUS_APPLIED) {
-                $number--;
-                $migrations[ $name ] = $migration;
-            }
+            $number--;
+            $migrations[ $name ] = $migration;
             if ($number == 0) break;
         }
-        ech("   Will be removed:\n", 'cyan');
+        if (empty($migrations)) {
+            ech("   Migrations not found.\n", 'yellow');
+            return;
+        }
+        ech("   Will be removed:\n", 'yellow');
         foreach ($migrations as $name => $migration) {
-            ech("      {$migration['name']} (" . date('d/m/Y', $migration['time']) . ")\n", 'yellow');
+            ech("      {$migration['name']} (" . date('d/m/Y', $migration['time']) . ")\n", 'white');
         }
         // ask user to confirm
         ech("   Do you really want to delete them? [y/n]:", 'red');
         $ask = $this->readLn(" ");
         if (strtolower($ask) == 'y') {
             foreach ($migrations as $name => $migration) {
-                ech("   Deleting {$migration['name']}\n", 'magenta');
+                ech("   Deleting {$migration['name']}\n", 'white');
                 $file = MPATH . '/migrations/' . $migration['name'] . '.php';
                 if ($migration['status'] == self::STATUS_APPLIED) {
                     // need to revert first
@@ -506,7 +519,7 @@ class MigraPhp
                 @unlink($file);
                 $this->saveHistory();
             }
-            ech("   Done\n", 'green');
+            ech("   Completed\n", 'green');
         }
     }
 
@@ -517,7 +530,8 @@ class MigraPhp
     {
         $number = 0;
         $revers = array_reverse($this->migrations);
-        $maxWidth = 8;
+        $nameLength = 8;
+        $authorLength = 10;
         $lines = [];
         foreach ($revers as $migration) {
             $number++;
@@ -529,19 +543,29 @@ class MigraPhp
             }
             $migration['date_time'] = date('d/m/Y H:i:s', $migration['time']);
             $length = strlen($migration['name']);
-            $maxWidth = ($maxWidth < $length) ? $length : $maxWidth;
+            $nameLength = ($nameLength < $length) ? $length : $nameLength;
+            $length = strlen($migration['author']);
+            $authorLength = ($authorLength < $length) ? $length : $authorLength;
             $lines[] = $migration;
             if ($num > 0 && $number > $num) break;
         }
-        ech("   Migrations statuses\n", 'cyan');
-        ech("   | DateTime            | Name " . str_repeat(" ", $maxWidth - 5) . " | Status    |\n", 'green');
-        ech("   |---------------------+-" . str_repeat("-", $maxWidth) . "-+-----------|\n", 'green');
+        if (empty($lines)) {
+            ech("   Migrations not found.\n", 'yellow');
+            return;
+        }
+        ech("   Migrations statuses\n\n", 'cyan');
+        ech("   | DateTime            | Name " . str_repeat(" ", $nameLength - 5)
+            . " | Author     | Status    |\n", 'green');
+        ech("   |---------------------+-" . str_repeat("-", $nameLength)
+            . "-+-" . str_repeat("-", $authorLength) . "-+-----------|\n", 'green');
         $lines = array_reverse($lines);
         foreach ($lines as $line) {
-            ech("   | {$line['date_time']} | {$line['name']}" . str_repeat(" ", $maxWidth - strlen($line['name']))
+            ech("   | {$line['date_time']} | {$line['name']}" . str_repeat(" ", $nameLength - strlen($line['name']))
+                . " | {$line['author']}" . str_repeat(" ", $authorLength - strlen($line['author']))
                 . " | {$line['status_title']}" . str_repeat(" ", 9 - strlen($line['status_title'])) . " |\n", 'green');
         }
-        ech("   +---------------------+-" . str_repeat("-", $maxWidth) . "-+-----------+\n", 'green');
+        ech("   +---------------------+-" . str_repeat("-", $nameLength)
+            . "-+-" . str_repeat("-", $authorLength) . "-+-----------+\n", 'green');
     }
 
     /**
@@ -553,7 +577,8 @@ class MigraPhp
         file_put_contents($file, "#DO NOT REMOVE THIS FILE!\n");
         ksort($this->migrations);
         foreach ($this->migrations as $name => $migration) {
-            file_put_contents($file, "{$migration['time']};{$name};{$migration['status']}\n", FILE_APPEND);
+            $author = str_replace(';', '', $migration['author']);
+            file_put_contents($file, "{$migration['time']};{$name};{$migration['status']};{$author}\n", FILE_APPEND);
         }
     }
 
