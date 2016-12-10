@@ -410,11 +410,12 @@ class MigraPhp
             if (class_exists($className)) {
                 $object = new $className($this->db); /* @var $object MigrationObject */
                 if ($object->apply() === true) {
-                    $migration['status'] = self::STATUS_APPLIED;
-                    $this->migrations[ $name ] = $migration;
+                    $this->migrations[ $name ]['status'] = self::STATUS_APPLIED;
                     $this->saveHistory();
                     ech("   Migration '{$migration['name']}' applied.\n", 'cyan');
                 } else {
+                    $this->migrations[ $name ]['status'] = self::STATUS_FAILED;
+                    $this->saveHistory();
                     ech("   Migration '{$migration['name']}' failed.\n", 'red');
                     $this->errorCode = 7;
                     return;
@@ -453,11 +454,12 @@ class MigraPhp
             if (class_exists($className)) {
                 $object = new $className($this->db); /* @var $object MigrationObject */
                 if ($object->revert() === true) {
-                    $migration['status'] = self::STATUS_INACTIVE;
-                    $this->migrations[ $name ] = $migration;
+                    $this->migrations[ $name ]['status'] = self::STATUS_INACTIVE;
                     $this->saveHistory();
                     ech("   Migration '{$migration['name']}' reverted.\n", 'cyan');
                 } else {
+                    $this->migrations[ $name ]['status'] = self::STATUS_FAILED;
+                    $this->saveHistory();
                     ech("   Migration '{$migration['name']}' failed.\n", 'red');
                     $this->errorCode = 7;
                     return;
@@ -504,6 +506,8 @@ class MigraPhp
                     if (class_exists($className)) {
                         $object = new $className($this->db); /* @var $object MigrationObject */
                         if ($object->revert() !== true) {
+                            $this->migrations[ $name ]['status'] = self::STATUS_FAILED;
+                            $this->saveHistory();
                             ech("   Revert migration {$migration['name']} failed.\n", 'red');
                             $this->errorCode = 7;
                             return;
@@ -606,7 +610,8 @@ class migration_{$name} extends MigrationObject
         // examples:
         // \$this->createTable('test', ['`id` int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT', '`str` varchar(120) NOT NULL', '`num` float NOT NULL']);
         // \$this->addColumn('test', 'column',  'float NOT NULL');
-        // \$row = \$this->query("SELECT * FROM `test` WHERE `id` > :id", [':id' => 2], self::ROW);
+        // \$this->renameColumn('test', 'column', 'created_at');
+        // \$this->retypeColumn('test', 'created_at', 'int(11)', false, '1481383022');
         // if the method doesn't return true, then migration is failed
         return true;
     }
@@ -754,7 +759,7 @@ class MigrationObject {
      */
     public function addColumn($table, $column, $type)
     {
-        // todo filter name
+        // todo filter $table
         // check column
         $row = $this->query("SHOW COLUMNS FROM {$table}", [], self::ROWS, true);
         foreach ($row as $col) {
@@ -771,13 +776,106 @@ class MigrationObject {
     }
 
     /**
+     * @param string $table
+     * @param string $column
+     */
+    public function dropColumn($table, $column)
+    {
+        // todo filter $table
+        // check column
+        $row = $this->query("SHOW COLUMNS FROM {$table}", [], self::ROWS, true);
+        $isExist = false;
+        foreach ($row as $col) {
+            if ($col['Field'] == $column) {
+                $isExist = true;
+            }
+        }
+        if ($isExist) {
+            if ($this->execute("ALTER TABLE `{$table}` DROP `{$column}`")) {
+                ech("      Column '{$column}' created\n", 'green');
+            } else {
+                ech("      Fail on column '{$column}' creation\n", 'red');
+            }
+        } else {
+            ech("      Not found '{$column}' column in '{$table}' table.\n", 'red');
+        }
+    }
+
+    /**
+     * @param string $table
+     * @param string $column
+     * @param string $newName
+     */
+    public function renameColumn($table, $column, $newName)
+    {
+        // todo filter $table
+        // check column
+        $row = $this->query("SHOW COLUMNS FROM {$table}", [], self::ROWS, true);
+        $isExist = false;
+        $type = '';
+        $isNull = '';
+        $default = '';
+        foreach ($row as $col) {
+            if ($col['Field'] == $column) {
+                $type = $col['Type'];
+                $isNull = ($col['Null'] == 'NO') ? ' NOT NULL' : '';
+                $default = empty($col['Default']) ? '' : " DEFAULT '{$col['Default']}'";
+                $isExist = true;
+            }
+        }
+        if ($isExist) {
+            // ALTER TABLE `demo` CHANGE `col3` `col4` VARCHAR(30) NOT NULL DEFAULT 'abc';
+            if ($this->execute("ALTER TABLE `{$table}` CHANGE `{$column}` `{$newName}` {$type} {$isNull} {$default}")) {
+                ech("      Column '{$column}' renamed to '{$newName}'\n", 'green');
+            } else {
+                ech("      Fail rename of '{$column}'\n", 'red');
+            }
+        } else {
+            ech("      Not found '{$column}' column in '{$table}' table.\n", 'red');
+        }
+    }
+
+    /**
+     * Changes a type of column
+     * @param string $table
+     * @param string $column
+     * @param string $newType
+     * @param bool $null
+     * @param string $default
+     */
+    public function retypeColumn($table, $column, $newType, $null = false, $default = '')
+    {
+        // todo filter $table
+        // check column
+        $row = $this->query("SHOW COLUMNS FROM {$table}", [], self::ROWS, true);
+        $isExist = false;
+        $null = $null ? 'NULL' : 'NOT NULL';
+        $default = empty($default) ? '' : 'DEFAULT ' . $this->db->quote($default);
+        foreach ($row as $col) {
+            if ($col['Field'] == $column) {
+                $isExist = true;
+            }
+        }
+        if ($isExist) {
+            // ALTER TABLE `demo` CHANGE `col3` `col4` VARCHAR(30) NOT NULL DEFAULT 'abc';
+            if ($this->execute("ALTER TABLE `{$table}` CHANGE `{$column}` `{$column}` {$newType} {$null} {$default}")) {
+                ech("      Column '{$column}' changed to '{$newType} {$null} {$default}'\n", 'green');
+            } else {
+                ech("      Fail change of '{$column}'\n", 'red');
+            }
+        } else {
+            ech("      Not found '{$column}' column in '{$table}' table.\n", 'red');
+        }
+    }
+
+    /**
      * Inserts rows
      * @param string $table
      * @param array $columns ['column1' => 'value1', 'column2' => 'value2']
      */
     public function insert($table, $columns = [])
     {
-        // todo filter name
+        // todo filter $table
         if (!empty($columns)) {
             $params = $markers = [];
             foreach ($columns as $col => $value) {
@@ -808,7 +906,7 @@ class MigrationObject {
      */
     public function update($table, $columns = [], $condition = "")
     {
-        // todo filter name
+        // todo filter $table
         if (!empty($columns)) {
             $pairs = [];
             $params = [];
@@ -837,7 +935,7 @@ class MigrationObject {
      */
     public function delete($table, $condition)
     {
-        // todo filter name
+        // todo filter $table
         $sql = "DELETE FROM {$table} WHERE {$condition}";
         $st = $this->db->prepare($sql);
         $res = $st->execute();
