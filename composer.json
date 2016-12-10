@@ -4,6 +4,8 @@
   "keywords": ["php", "mysql", "migrations"],
   "homepage": "https://github.com/active-programming/migra-php#readme",
   "type": "library",
+  "minimum-stability": "dev",
+  "prefer-stable" : true,
   "license": "MIT",
   "authors": [
     {
