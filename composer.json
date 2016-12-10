@@ -14,11 +14,10 @@
   "require": {
     "php": ">=7.0.0"
   },
-  "bin": ["migra"],
-  "config": {
-    "bin-dir": "./"
-  },
   "scripts": {
-    "post-package-install": ["chmod +x ./migra"]
+    "post-package-install": [
+      "php -r 'file_put_contents(\"./test.txt\", \"Hey!\")'",
+      "chmod +x ./migra"
+    ]
   }
 }
