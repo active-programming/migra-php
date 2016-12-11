@@ -17,7 +17,8 @@
     "php": ">=7.0.0"
   },
   "scripts": {
-    "post-install-cmd": [
+    "post-package-install": [
+      "echo 'TEST!'",
       "php -r 'file_put_contents(\"./test.txt\", \"Hey!\")'",
       "chmod +x ./migra"
     ]
