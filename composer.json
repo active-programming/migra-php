@@ -18,9 +18,8 @@
   },
   "scripts": {
     "post-package-install": [
-      "echo 'TEST!'",
-      "php -r 'file_put_contents(\"./test.txt\", \"Hey!\")'",
-      "chmod +x ./migra"
+      "bash chmod +x ./vendor/adamasantares/migra-php/migra",
+      "bash ln -s ./vendor/adamasantares/migra-php/migra ./migra"
     ]
   }
 }
