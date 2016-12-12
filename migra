@@ -60,12 +60,13 @@ class MigraPhp
         // check config
         $default = $this->getDefaultConfig();
         if (is_dir(MPATH . '/migrations') && is_file(MPATH . '/migrations/.config')) {
-            $this->configured = true;
             $config = require(MPATH . '/migrations/.config');
             if (!is_array($config)) {
                 $this->errorCode = 60;
                 ech("   Empty or corrupted configuration file\n", 'red');
                 return;
+            } else {
+                $this->configured = true;
             }
             $this->config = array_replace_recursive($default, $config);
             // test connection
@@ -103,11 +104,12 @@ class MigraPhp
     public function help($short = false, $isInstalled = true)
     {
         if (!$isInstalled) {
-            ech("  Need to initalize first. Use command:\n", 'light_cyan');
-            ech("   $ ./migra config\n", 'green');
-            ech("   OR\n", 'cyan');
-            ech("   $ ./migra config [database] [dbuser] [dbpassword] [dbhost] [dbport] - all parameters is optional\n", 'green');
-            ech("  for initialize or configure MigraPHP.\n", 'cyan');
+            ech("  Need to initalize first. Use command:\n", 'yellow');
+            ech("   $ ./migra config\n", 'white');
+            ech("   OR\n", 'yellow');
+            ech("   $ ./migra config [database] [dbuser] [dbpassword] [dbhost] [dbport] - all parameters is optional\n", 'white');
+            ech("  for initialize or configure MigraPHP.\n", 'yellow');
+            ech("", 'white');
             return;
         }
 
@@ -118,6 +120,7 @@ class MigraPhp
         ech("   ./migra apply|up {number} - apply last {number} of migrations\n", 'cyan');
         ech("   ./migra revert|down {number} - revert last {number} of migrations\n", 'cyan');
         ech("   ./migra delete {number} - revert and delete last {number} of migrations\n", 'cyan');
+        ech("", 'white');
 
         if ($short) return;
 
@@ -153,7 +156,7 @@ class MigraPhp
             if ($argv[1] == 'config') {
                 $this->doConfigure($argv);
             } else {
-                $this->help(true, true);
+                $this->help(true, false);
                 $this->errorCode = 10;
             }
             return;
