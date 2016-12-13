@@ -13,9 +13,17 @@ Run in root folder of project:
 ```
 $ wget https://raw.githubusercontent.com/active-programming/migra-php/master/migra; chmod +x ./migra; 
 ```
+or
 
 ```
 $ php -r "file_put_contents('migra', file_get_contents('https://raw.githubusercontent.com/active-programming/migra-php/master/migra'));"; chmod +x ./migra;
+```
+
+or
+
+```
+$ composer require adamasantares/migra-php
+$ ./vendor/adamasantares/migra-php/migra link #run once on install
 ```
 
 Then try
