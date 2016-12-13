@@ -420,7 +420,7 @@ class MigraPhp
             $file = MPATH . '/migrations/' . $migration['name'] . '.php';
             if (!is_file($file)) {
                 ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
-                ech("   If that file no needed anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
+                ech("   if that file doesn't need anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
                 $this->errorCode = 9;
                 return;
             }
@@ -470,7 +470,7 @@ class MigraPhp
             $file = MPATH . '/migrations/' . $migration['name'] . '.php';
             if (!is_file($file)) {
                 ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
-                ech("   If that file no needed anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
+                ech("   if that file doesn't need anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
                 $this->errorCode = 9;
                 return;
             }
@@ -528,7 +528,7 @@ class MigraPhp
                     // need to revert first
                     if (!is_file($file)) {
                         ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
-                        ech("   If that file no needed anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
+                        ech("   if that file doesn't need anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
                         $this->errorCode = 9;
                         return;
                     }
