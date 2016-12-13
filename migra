@@ -44,7 +44,7 @@ class MigraPhp
      * Allowed terminal commands
      * @var array
      */
-    private $commands = ['help', 'config', 'apply', 'up', 'revert', 'down', 'create', 'delete', 'status'];
+    private $commands = ['link', 'help', 'config', 'apply', 'up', 'revert', 'down', 'create', 'delete', 'status'];
 
     /** @var PDO */
     private $db = null;
@@ -151,6 +151,9 @@ class MigraPhp
         if ($argv[1] == 'help') {
             $this->help(false, true);
             return;
+        } else if ($argv[1] == 'link') {
+            $this->createSoftLink();
+            return;
         }
         if ($this->configured == false || $argv[1] == 'config') {
             if ($argv[1] == 'config') {
@@ -186,6 +189,9 @@ class MigraPhp
                 break;
             case 'status';
                 $this->migrationsStatuses();
+                break;
+            case 'link';
+                $this->createSoftLink();
                 break;
         }
     }
@@ -590,6 +596,25 @@ class MigraPhp
     }
 
     /**
+     * Creates soft link for Composer installation case
+     */
+    public function createSoftLink()
+    {
+        if (stripos(__DIR__, 'vendor/adamasantares/migra-php') !== false) {
+            shell_exec('ln -s ' . __FILE__ . ' ' . __DIR__ . '/../../../migra');
+            shell_exec('chmod +x ' . __DIR__ . '/../../../migra');
+            if (is_file(__DIR__ . '/../../../migra')) {
+                ech("   Soft link ./migra created\n", 'cyan');
+                ech("   Now you can use './migra' command from project's root folder\n", 'cyan');
+            } else {
+                ech("   Some problem on soft link creation.\n", 'red');
+            }
+        } else {
+            ech("   No need to create soft link, you don't use Composer installation.\n", 'cyan');
+        }
+    }
+
+    /**
      * Template of migration
      * @param string $name
      * @param string $username
@@ -950,7 +975,6 @@ class MigrationObject {
         }
         ech("      Deleted rows " . $st->rowCount() . " rows\n", 'green');
     }
-
 
 }
 

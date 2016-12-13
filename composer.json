@@ -14,12 +14,6 @@
     }
   ],
   "require": {
-    "php": ">=7.0.0"
-  },
-  "scripts": {
-    "post-package-install": [
-      "bash chmod +x ./vendor/adamasantares/migra-php/migra",
-      "bash ln -s ./vendor/adamasantares/migra-php/migra ./migra"
-    ]
+    "php": ">=5.6.0"
   }
 }
