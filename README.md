@@ -106,10 +106,40 @@ class migration_1481366582_my_first_migration extends MigrationObject
 }
 ```
 
-Apply migration:
+###Apply migration:
 
 ```
+$ ./migra apply
+or
 $ ./migra up
+or
+$ ./migra up 5 - apply 5 migrations
 ```
 
-etc.
+###Revert migration
+
+```
+$ ./migra revert
+or
+$ ./migra down
+or
+$ ./migra down 3 - revert last 3 migrations
+```
+
+###Statuses
+
+```
+$ ./migra status
+
+   Migrations statuses
+
+   | DateTime            | Name                          | Author     | Status    |
+   |---------------------+-------------------------------+------------+-----------|
+   | 13/12/2016 02:43:11 | 1481596991_createTestTable    | Konstantin | APPLIED   |
+   | 13/12/2016 02:43:26 | 1481597006_addColumnToTest    | Konstantin | APPLIED   |
+   | 13/12/2016 02:43:41 | 1481597021_dropColumnFromTest | Konstantin | INACTIVE  |
+   | 13/12/2016 02:43:51 | 1481597031_something          | Konstantin | INACTIVE  |
+   +---------------------+-------------------------------+------------+-----------+
+```
+
+###FIN
