@@ -155,6 +155,7 @@ class MigraPhp
             $this->createSoftLink();
             return;
         }
+        // check is configured
         if ($this->configured == false || $argv[1] == 'config') {
             if ($argv[1] == 'config') {
                 $this->doConfigure($argv);
@@ -164,7 +165,10 @@ class MigraPhp
             }
             return;
         }
+
         $this->loadMigrations();
+
+        // execute command
         $num = !empty($argv[2]) && is_numeric($argv[2]) ? intval($argv[2]) : 1;
         switch ($argv[1]) {
             case 'create';
@@ -414,6 +418,12 @@ class MigraPhp
         foreach ($migrations as $name => $migration) {
             ech("   Begin '{$migration['name']}' migration\n", 'cyan');
             $file = MPATH . '/migrations/' . $migration['name'] . '.php';
+            if (!is_file($file)) {
+                ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
+                ech("   If that file no needed anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
+                $this->errorCode = 9;
+                return;
+            }
             require($file);
             $className = 'migration_' . $migration['name'];
             if (class_exists($className)) {
@@ -458,6 +468,12 @@ class MigraPhp
         foreach ($migrations as $name => $migration) {
             ech("   Begin '{$migration['name']}' migration\n", 'cyan');
             $file = MPATH . '/migrations/' . $migration['name'] . '.php';
+            if (!is_file($file)) {
+                ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
+                ech("   If that file no needed anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
+                $this->errorCode = 9;
+                return;
+            }
             require($file);
             $className = 'migration_' . $migration['name'];
             if (class_exists($className)) {
@@ -510,6 +526,12 @@ class MigraPhp
                 $file = MPATH . '/migrations/' . $migration['name'] . '.php';
                 if ($migration['status'] == self::STATUS_APPLIED) {
                     // need to revert first
+                    if (!is_file($file)) {
+                        ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
+                        ech("   If that file no needed anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
+                        $this->errorCode = 9;
+                        return;
+                    }
                     require($file);
                     $className = 'migration_' . $migration['name'];
                     if (class_exists($className)) {
