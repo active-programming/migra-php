@@ -293,6 +293,8 @@ class MigraPhp
             $config['username'] = $username;
             if (!is_dir(MPATH . '/migrations')) {
                 mkdir(MPATH . '/migrations');
+            }
+            if (!is_file(MPATH . '/migrations/.gitignore')) {
                 file_put_contents(MPATH . '/migrations/.gitignore', ".gitignore\n.config\n.history");
             }
         }
