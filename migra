@@ -789,6 +789,23 @@ class MigrationObject {
     }
 
     /**
+     * Renames table
+     * @param string $name
+     * @param string $newName
+     */
+    public function renameTable($name, $newName)
+    {
+        // todo filter name
+        $sql = "RENAME TABLE {$name} TO {$newName};";
+        if ($this->execute($sql)) {
+            ech("      Table '{$name}' was renamed\n", 'green');
+        } else {
+            ech("      Fail on renaming table '{$name}'\n", 'red');
+        }
+        $this->execute($sql);
+    }
+
+    /**
      * Drops table if exists
      * @param string $name
      */
