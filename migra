@@ -846,7 +846,7 @@ class MigrationObject {
             if ($this->execute("ALTER TABLE `{$table}` DROP `{$column}`")) {
                 ech("      Column '{$column}' created\n", 'green');
             } else {
-                ech("      Fail on column '{$column}' creation\n", 'red');
+                ech("      Fail on column '{$column}' deleted\n", 'red');
             }
         } else {
             ech("      Not found '{$column}' column in '{$table}' table.\n", 'red');
