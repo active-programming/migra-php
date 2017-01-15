@@ -798,11 +798,10 @@ class MigrationObject {
         // todo filter name
         $sql = "RENAME TABLE {$name} TO {$newName};";
         if ($this->execute($sql)) {
-            ech("      Table '{$name}' was renamed\n", 'green');
+            ech("      Table '{$name}' was renamed to {$newName}\n", 'green');
         } else {
             ech("      Fail on renaming table '{$name}'\n", 'red');
         }
-        $this->execute($sql);
     }
 
     /**
@@ -818,7 +817,6 @@ class MigrationObject {
         } else {
             ech("      Fail on deleting table '{$name}'\n", 'red');
         }
-        $this->execute($sql);
     }
 
     /**
