@@ -660,10 +660,15 @@ class migration_{$name} extends MigrationObject
     {
         // todo your code here
         // examples:
-        // \$this->createTable('test', ['`id` int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT', '`str` varchar(120) NOT NULL', '`num` float NOT NULL']);
-        // \$this->addColumn('test', 'column',  'float NOT NULL');
+        // \$this->createTable('test', [
+        //      '`id` BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT',
+        //      '`str` VARCHAR(120) NOT NULL',
+        //      '`num` FLOAT NOT NULL',
+        // ]);
+        // \$this->addColumn('test', 'column_name',  'TEXT NOT NULL AFTER `str`');
         // \$this->renameColumn('test', 'column', 'created_at');
         // \$this->retypeColumn('test', 'created_at', 'int(11)', false, '1481383022');
+        // \$this->execute("INSERT INTO `test` (`str`, `num`, `created_at`) VALUES ('pum purum', '12.5', time())");
         // if the method doesn't return true, then migration is failed
         return true;
     }
@@ -672,7 +677,8 @@ class migration_{$name} extends MigrationObject
     {
         // todo your code here
         // example
-        // \$this->dropTable('test');
+        // \$this->dropTable('table_name');
+        // \$this->dropColumn('table_name', 'column_name');
         return true;
     }
 
@@ -719,6 +725,32 @@ class MigrationObject {
     {
         return false;
     }
+
+
+    /**
+     * @return array
+     */
+    public function isTablesExists($name)
+    {
+        $tables = $this->query("SHOW TABLES");
+        foreach($tables as $table) {
+            $table = array_shift($table);
+            if ($table == $name) return true;
+        }
+        return false;
+    }
+
+
+    /**
+     * Simple filtering of table name
+     * @param string $table
+     * @return string
+     */
+    public function filterName($table)
+    {
+        return trim($this->db->quote($table), "'");
+    }
+
 
     /**
      * Executes an sql query
@@ -780,6 +812,7 @@ class MigrationObject {
      */
     public function createTable($name, $columns, $options = 'ENGINE=InnoDB DEFAULT CHARSET=utf8')
     {
+        $name = $this->filterName($name);
         $sql = "CREATE TABLE IF NOT EXISTS `{$name}` (" . implode(', ', $columns) . ") {$options}";
         if ($this->execute($sql)) {
             ech("      Table '{$name}' created\n", 'green');
@@ -795,7 +828,11 @@ class MigrationObject {
      */
     public function renameTable($name, $newName)
     {
-        // todo filter name
+        $name = $this->filterName($name);
+        $newName = $this->filterName($newName);
+        if (!$this->isTablesExists($name)) {
+            ech("      Cannot rename table '{$name}' because it doesn't exists\n", 'red');
+        }
         $sql = "RENAME TABLE {$name} TO {$newName};";
         if ($this->execute($sql)) {
             ech("      Table '{$name}' was renamed to {$newName}\n", 'green');
@@ -810,7 +847,10 @@ class MigrationObject {
      */
     public function dropTable($name)
     {
-        // todo filter name
+        $name = $this->filterName($name);
+        if (!$this->isTablesExists($name)) {
+            ech("      Cannot delete table '{$name}' because it doesn't exists\n", 'red');
+        }
         $sql = "DROP TABLE IF EXISTS `{$name}`";
         if ($this->execute($sql)) {
             ech("      Table '{$name}' was deleted\n", 'green');
@@ -826,7 +866,11 @@ class MigrationObject {
      */
     public function addColumn($table, $column, $type)
     {
-        // todo filter $table
+        $table = $this->filterName($table);
+        $column = $this->filterName($column);
+        if (!$this->isTablesExists($table)) {
+            ech("      Cannot add new column '{$column}' because table '{$table}' doesn't exists\n", 'red');
+        }
         // check column
         $row = $this->query("SHOW COLUMNS FROM {$table}", [], self::ROWS, true);
         foreach ($row as $col) {
@@ -848,7 +892,11 @@ class MigrationObject {
      */
     public function dropColumn($table, $column)
     {
-        // todo filter $table
+        $table = $this->filterName($table);
+        $column = $this->filterName($column);
+        if (!$this->isTablesExists($table)) {
+            ech("      Cannot delete column '{$column}' because table '{$table}' doesn't exists\n", 'red');
+        }
         // check column
         $row = $this->query("SHOW COLUMNS FROM {$table}", [], self::ROWS, true);
         $isExist = false;
@@ -875,7 +923,11 @@ class MigrationObject {
      */
     public function renameColumn($table, $column, $newName)
     {
-        // todo filter $table
+        $table = $this->filterName($table);
+        $column = $this->filterName($column);
+        if (!$this->isTablesExists($table)) {
+            ech("      Cannot rename column '{$column}' because table '{$table}' doesn't exists\n", 'red');
+        }
         // check column
         $row = $this->query("SHOW COLUMNS FROM {$table}", [], self::ROWS, true);
         $isExist = false;
@@ -912,7 +964,11 @@ class MigrationObject {
      */
     public function retypeColumn($table, $column, $newType, $null = false, $default = '')
     {
-        // todo filter $table
+        $table = $this->filterName($table);
+        $column = $this->filterName($column);
+        if (!$this->isTablesExists($table)) {
+            ech("      Cannot ''retype'' column '{$column}' because table '{$table}' doesn't exists\n", 'red');
+        }
         // check column
         $row = $this->query("SHOW COLUMNS FROM {$table}", [], self::ROWS, true);
         $isExist = false;
@@ -942,7 +998,10 @@ class MigrationObject {
      */
     public function insert($table, $columns = [])
     {
-        // todo filter $table
+        $table = $this->filterName($table);
+        if (!$this->isTablesExists($table)) {
+            ech("      Cannot insert row because table '{$table}' doesn't exists\n", 'red');
+        }
         if (!empty($columns)) {
             $params = $markers = [];
             foreach ($columns as $col => $value) {
@@ -973,7 +1032,10 @@ class MigrationObject {
      */
     public function update($table, $columns = [], $condition = "")
     {
-        // todo filter $table
+        $table = $this->filterName($table);
+        if (!$this->isTablesExists($table)) {
+            ech("      Cannot update row because table '{$table}' doesn't exists\n", 'red');
+        }
         if (!empty($columns)) {
             $pairs = [];
             $params = [];
@@ -1002,7 +1064,10 @@ class MigrationObject {
      */
     public function delete($table, $condition)
     {
-        // todo filter $table
+        $table = $this->filterName($table);
+        if (!$this->isTablesExists($table)) {
+            ech("      Cannot delete row(s) because table '{$table}' doesn't exists\n", 'red');
+        }
         $sql = "DELETE FROM {$table} WHERE {$condition}";
         $st = $this->db->prepare($sql);
         $res = $st->execute();
