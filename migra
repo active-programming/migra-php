@@ -93,7 +93,7 @@ class MigraPhp
         $default = $this->getDefaultConfig();
         $c = array_replace_recursive($default, $this->config);
         try {
-            $conn = "mysql:host={$c['db']['host']};dbname={$c['db']['name']};port={$c['db']['port']}";
+            $conn = "mysql:host={$c['db']['host']};dbname={$c['db']['name']};port={$c['db']['port']};charset=UTF8";
             $this->db = new PDO($conn, $c['db']['user'], $c['db']['password']);
         } catch (PDOException $e) {
             return $e->getMessage();

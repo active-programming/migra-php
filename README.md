@@ -99,7 +99,7 @@ class migration_1481366582_my_first_migration extends MigrationObject
 }
 ```
 
-###Apply migration:
+### Apply migration:
 
 ```
 $ ./migra apply
@@ -109,7 +109,7 @@ or
 $ ./migra up 5 - apply 5 migrations
 ```
 
-###Revert migration
+### Revert migration
 
 ```
 $ ./migra revert
@@ -119,7 +119,7 @@ or
 $ ./migra down 3 - revert last 3 migrations
 ```
 
-###Statuses
+### Statuses
 
 ```
 $ ./migra status
@@ -135,4 +135,4 @@ $ ./migra status
    +---------------------+-------------------------------+------------+-----------+
 ```
 
-###FIN
+### FIN
