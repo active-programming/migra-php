@@ -36,6 +36,11 @@ class MigraPhp
     private $config = [];
 
     /**
+     * @var string
+     */
+    private $table = '_migra';
+
+    /**
      * @var array
      */
     private $migrations = [];
@@ -169,7 +174,7 @@ class MigraPhp
         $this->loadMigrations();
 
         // execute command
-        $num = !empty($argv[2]) && is_numeric($argv[2]) ? intval($argv[2]) : 1;
+        $num = !empty($argv[2]) && is_numeric($argv[2]) ? intval($argv[2]) : null;
         switch ($argv[1]) {
             case 'create';
                 if (!empty($argv[2])) {
@@ -214,15 +219,6 @@ class MigraPhp
                 'port' => '3306',
             ],
             'username' => 'Unknown',
-//            TODO
-//            'triggers' => [
-//                'onSuccess' => 'replace this string by php file path like "/path/to/file.php:function_name"',
-//                'onFail' => 'replace this string by php file path like "/path/to/file.php:function_name"',
-//                'onBeforeApply' => 'replace this string by php file path like "/path/to/file.php:function_name"',
-//                'onAfterApply' => 'replace this string by php file path like "/path/to/file.php:function_name"',
-//                'onBeforeRevert' => 'replace this string by php file path like "/path/to/file.php:function_name"',
-//                'onAfterRevert' => 'replace this string by php file path like "/path/to/file.php:function_name"',
-//            ]
         ];
     }
 
@@ -236,22 +232,22 @@ class MigraPhp
         if (!empty($argv[2])) {
             $config['db']['name'] = $argv[2];
         } else {
-            $config['db']['name'] = $this->readLn('Enter database name: ');
+            $config['db']['name'] = input('Enter database name: ', 'cyan');
         }
         if (!empty($argv[3])) {
             $config['db']['user'] = $argv[3];
         } else {
-            $config['db']['user'] = $this->readLn('Enter db user name: ');
+            $config['db']['user'] = input('Enter db user name: ', 'cyan');
         }
         if (!empty($argv[4])) {
             $config['db']['password'] = $argv[4];
         } else {
-            $config['db']['password'] = $this->readLn('Enter db password: ', true);
+            $config['db']['password'] = input('Enter db password: ', 'cyan');
         }
         if (!empty($argv[5])) {
             $config['db']['host'] = $argv[5];
         } else {
-            $host = $this->readLn('Enter db host [localhost]: ');
+            $host = input('Enter db host [localhost]: ', 'cyan');
             if (!empty($host)) {
                 $config['db']['host'] = $host;
             }
@@ -259,7 +255,7 @@ class MigraPhp
         if (!empty($argv[6])) {
             $config['db']['port'] = $argv[6];
         } else {
-            $post = $this->readLn('Enter db port [3306]: ');
+            $post = input('Enter db port [3306]: ', 'cyan');
             if (!empty($post)) {
                 $config['db']['port'] = $post;
             }
@@ -297,6 +293,17 @@ class MigraPhp
             if (!is_file(MPATH . '/migrations/.gitignore')) {
                 file_put_contents(MPATH . '/migrations/.gitignore', ".gitignore\n.config\n.history");
             }
+            // create table
+            $migration = new MigrationObject($this->db);
+            if (!$migration->isTablesExists($this->table)) {
+                $migration->createTable($this->table, [
+                    "`id` INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT",
+                    "`created_at` INT UNSIGNED NOT NULL DEFAULT '0'",
+                    "`name` VARCHAR(255) NOT NULL",
+                    "`status` TINYINT(1) NOT NULL",
+                    "`author` VARCHAR(50) NOT NULL",
+                ]);
+            }
         }
         // save
         $php = "<?php\n// MigraPHP configuration\nreturn " . var_export($config, true) . ";\n";
@@ -306,40 +313,50 @@ class MigraPhp
 
 
     /**
-     * @param string $prompt
-     * @return string
-     */
-    private function readLn($prompt = '> ')
-    {
-        if (PHP_OS == 'WINNT') {
-            echo $prompt;
-            $line = stream_get_line(STDIN, 1024, PHP_EOL);
-        } else {
-            $line = readline($prompt);
-        }
-        return $line;
-    }
-
-
-    /**
      * Load exists migrations
      */
     private function loadMigrations()
     {
-        $file = MPATH . '/migrations/.history';
-        if (!is_file($file)) {
-            file_put_contents($file, "#DO NOT REMOVE THIS FILE!\n");
+        // check "_migra" table
+        $migration = new MigrationObject($this->db);
+        if (!$migration->isTablesExists($this->table)) {
+            // create table and move all history in
+            $migration->createTable($this->table, [
+                "`id` INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT",
+                "`created_at` INT UNSIGNED NOT NULL DEFAULT '0'",
+                "`name` VARCHAR(255) NOT NULL",
+                "`status` TINYINT(1) NOT NULL",
+                "`author` VARCHAR(50) NOT NULL",
+            ]);
         }
-        // from cache
-        $lines = file($file);
-        foreach ($lines as $line) {
-            if (empty(trim($line)) || substr($line, 0, 1) == '#') continue;
-            $line = explode(';', $line); // time;name;status;author
-            $this->migrations[ trim($line[1]) ] = [
-                'time' => trim($line[0]),
-                'name' => trim($line[1]),
-                'status' => trim($line[2]),
-                'author' => trim($line[3]),
+        // check old history file
+        $file = MPATH . '/migrations/.history';
+        if (is_file($file)) {
+            ech("   Moving migrations history from file '.history' to table 'migra'\n", 'yellow');
+            // migrate history to table
+            $lines = file($file);
+            foreach ($lines as $line) {
+                if (empty(trim($line)) || substr($line, 0, 1) == '#') continue;
+                $line = explode(';', $line); // time;name;status;author
+                $migration->insert($this->table, [
+                    'created_at' => trim($line[0]),
+                    'name' => trim($line[1]),
+                    'status' => trim($line[2]),
+                    'author' => trim($line[3]),
+                ]);
+            }
+            // delete old history file
+            @unlink($file);
+        }
+        // load migrations list
+        $res = $this->db->query("SELECT * FROM `_migra`");
+        foreach($res->fetchAll() as $migration) {
+            $this->migrations[ $migration['name'] ] = [
+                'id' => $migration['id'],
+                'time' => $migration['created_at'],
+                'name' => $migration['name'],
+                'status' => $migration['status'],
+                'author' => $migration['author'],
             ];
         }
         // search new files
@@ -359,6 +376,7 @@ class MigraPhp
                         }
                     }
                     $this->migrations[$name] = [
+                        'id' => 0,
                         'time' => $time,
                         'name' => $name,
                         'status' => self::STATUS_INACTIVE,
@@ -390,6 +408,7 @@ class MigraPhp
         file_put_contents($file, $code);
         // add to cache
         $this->migrations[ $name ] = [
+            'id' => 0,
             'time' => $time,
             'name' => $name,
             'status' => self::STATUS_INACTIVE,
@@ -403,8 +422,9 @@ class MigraPhp
     /**
      * @param int $number
      */
-    private function applyMigration($number = 1)
+    private function applyMigration($number = null)
     {
+        $number = ($number === null) ? 99999 : $number;
         $migrations = [];
         foreach ($this->migrations as $name => $migration) {
             if ($migration['status'] == self::STATUS_INACTIVE || $migration['status'] == self::STATUS_FAILED) {
@@ -417,34 +437,43 @@ class MigraPhp
             ech("   Inactive migrations not found.\n", 'yellow');
             return;
         }
-        foreach ($migrations as $name => $migration) {
-            ech("   Begin '{$migration['name']}' migration\n", 'cyan');
-            $file = MPATH . '/migrations/' . $migration['name'] . '.php';
-            if (!is_file($file)) {
-                ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
-                ech("   if that file doesn't need anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
-                $this->errorCode = 9;
-                return;
-            }
-            require($file);
-            $className = 'migration_' . $migration['name'];
-            if (class_exists($className)) {
-                $object = new $className($this->db); /* @var $object MigrationObject */
-                if ($object->apply() === true) {
-                    $this->migrations[ $name ]['status'] = self::STATUS_APPLIED;
-                    $this->saveHistory();
-                    ech("   Migration '{$migration['name']}' applied.\n", 'cyan');
-                } else {
-                    $this->migrations[ $name ]['status'] = self::STATUS_FAILED;
-                    $this->saveHistory();
-                    ech("   Migration '{$migration['name']}' failed.\n", 'red');
-                    $this->errorCode = 7;
+        ech("   New migrations to be applied:\n", 'cyan');
+        foreach ($migrations as $migration) {
+            ech("    {$migration['name']}\n", 'cyan');
+        }
+        $answer = input('    Apply these migrations? (yes|no) [y]: ', 'yellow');
+        if (strtolower($answer) == 'y' || empty($answer)) {
+            ech("\n");
+            foreach ($migrations as $name => $migration) {
+                ech("   Begin '{$migration['name']}' migration\n", 'cyan');
+                $file = MPATH . '/migrations/' . $migration['name'] . '.php';
+                if (!is_file($file)) {
+                    ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
+                    ech("   if that file doesn't need anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
+                    $this->errorCode = 9;
                     return;
                 }
-            } else {
-                ech("   Migration error. Class '{$className}' not found.\n", 'red');
-                $this->errorCode = 6;
-                return;
+                require($file);
+                $className = 'migration_' . $migration['name'];
+                if (class_exists($className)) {
+                    $object = new $className($this->db);
+                    /* @var $object MigrationObject */
+                    if ($object->apply() === true) {
+                        $this->migrations[$name]['status'] = self::STATUS_APPLIED;
+                        $this->saveHistory();
+                        ech("   Migration '{$migration['name']}' applied.\n", 'cyan');
+                    } else {
+                        $this->migrations[$name]['status'] = self::STATUS_FAILED;
+                        $this->saveHistory();
+                        ech("   Migration '{$migration['name']}' failed.\n", 'red');
+                        $this->errorCode = 7;
+                        return;
+                    }
+                } else {
+                    ech("   Migration error. Class '{$className}' not found.\n", 'red');
+                    $this->errorCode = 6;
+                    return;
+                }
             }
         }
     }
@@ -452,8 +481,9 @@ class MigraPhp
     /**
      * @param int $number
      */
-    private function revertMigration($number = 1)
+    private function revertMigration($number = null)
     {
+        $number = ($number === null) ? 1 : $number;
         $migrations = [];
         $revers = array_reverse($this->migrations);
         foreach ($revers as $migration) {
@@ -467,34 +497,43 @@ class MigraPhp
             ech("   Active migrations not found.\n", 'yellow');
             return;
         }
-        foreach ($migrations as $name => $migration) {
-            ech("   Begin '{$migration['name']}' migration\n", 'cyan');
-            $file = MPATH . '/migrations/' . $migration['name'] . '.php';
-            if (!is_file($file)) {
-                ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
-                ech("   if that file doesn't need anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
-                $this->errorCode = 9;
-                return;
-            }
-            require($file);
-            $className = 'migration_' . $migration['name'];
-            if (class_exists($className)) {
-                $object = new $className($this->db); /* @var $object MigrationObject */
-                if ($object->revert() === true) {
-                    $this->migrations[ $name ]['status'] = self::STATUS_INACTIVE;
-                    $this->saveHistory();
-                    ech("   Migration '{$migration['name']}' reverted.\n", 'cyan');
-                } else {
-                    $this->migrations[ $name ]['status'] = self::STATUS_FAILED;
-                    $this->saveHistory();
-                    ech("   Migration '{$migration['name']}' failed.\n", 'red');
-                    $this->errorCode = 7;
+        ech("   Migrations to be reverted:\n", 'cyan');
+        foreach ($migrations as $migration) {
+            ech("    {$migration['name']}\n", 'cyan');
+        }
+        $answer = input('    Revert these migrations? (yes|no) [y]: ', 'yellow');
+        if (strtolower($answer) == 'y' || empty($answer)) {
+            ech("\n");
+            foreach ($migrations as $name => $migration) {
+                ech("   Begin '{$migration['name']}' migration\n", 'cyan');
+                $file = MPATH . '/migrations/' . $migration['name'] . '.php';
+                if (!is_file($file)) {
+                    ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
+                    ech("   if that file doesn't need anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
+                    $this->errorCode = 9;
                     return;
                 }
-            } else {
-                ech("   Migration error. Class '{$className}' not found.\n", 'red');
-                $this->errorCode = 6;
-                return;
+                require($file);
+                $className = 'migration_' . $migration['name'];
+                if (class_exists($className)) {
+                    $object = new $className($this->db);
+                    /* @var $object MigrationObject */
+                    if ($object->revert() === true) {
+                        $this->migrations[$name]['status'] = self::STATUS_INACTIVE;
+                        $this->saveHistory();
+                        ech("   Migration '{$migration['name']}' reverted.\n", 'cyan');
+                    } else {
+                        $this->migrations[$name]['status'] = self::STATUS_FAILED;
+                        $this->saveHistory();
+                        ech("   Migration '{$migration['name']}' failed.\n", 'red');
+                        $this->errorCode = 7;
+                        return;
+                    }
+                } else {
+                    ech("   Migration error. Class '{$className}' not found.\n", 'red');
+                    $this->errorCode = 6;
+                    return;
+                }
             }
         }
     }
@@ -502,8 +541,9 @@ class MigraPhp
     /**
      * @param $number
      */
-    private function deleteMigration($number = 1)
+    private function deleteMigration($number = null)
     {
+        $number = ($number === null) ? 1 : $number;
         $migrations = [];
         $revers = array_reverse($this->migrations);
         foreach ($revers as $name => $migration) {
@@ -520,21 +560,19 @@ class MigraPhp
             ech("      {$migration['name']} (" . date('d/m/Y', $migration['time']) . ")\n", 'white');
         }
         // ask user to confirm
-        ech("   Do you really want to delete them? [y/n]:", 'red');
-        $ask = $this->readLn(" ");
+        $ask = input("   Do you really want to delete them? (yes/no) [n]: ", 'red');
         if (strtolower($ask) == 'y') {
             foreach ($migrations as $name => $migration) {
-                ech("   Deleting {$migration['name']}\n", 'white');
+                ech("   Deleting {$migration['name']}\n", 'yellow');
                 $file = MPATH . '/migrations/' . $migration['name'] . '.php';
                 if ($migration['status'] == self::STATUS_APPLIED) {
                     // need to revert first
                     if (!is_file($file)) {
                         ech("   Migration not found: '{$migration['name']}.php'\n", 'red');
-                        ech("   if that file doesn't need anymore, then just delete 'migrations/.history' file and try again.\n", 'red');
                         $this->errorCode = 9;
                         return;
                     }
-                    require($file);
+                    include($file);
                     $className = 'migration_' . $migration['name'];
                     if (class_exists($className)) {
                         $object = new $className($this->db); /* @var $object MigrationObject */
@@ -552,8 +590,8 @@ class MigraPhp
                     }
                 }
                 // remove file and history
-                unset($this->migrations[ $name ]);
-                @unlink($file);
+                $this->migrations[ $name ]['id'] = -100;
+                @unlink($file); // delete migrations file
                 $this->saveHistory();
             }
             ech("   Completed\n", 'green');
@@ -563,7 +601,7 @@ class MigraPhp
     /**
      * @param int $num
      */
-    private function migrationsStatuses($num = 0)
+    private function migrationsStatuses($num = null)
     {
         $number = 0;
         $revers = array_reverse($this->migrations);
@@ -610,12 +648,27 @@ class MigraPhp
      */
     private function saveHistory()
     {
-        $file = MPATH . '/migrations/.history';
-        file_put_contents($file, "#DO NOT REMOVE THIS FILE!\n");
         ksort($this->migrations);
-        foreach ($this->migrations as $name => $migration) {
-            $author = str_replace(';', '', $migration['author']);
-            file_put_contents($file, "{$migration['time']};{$name};{$migration['status']};{$author}\n", FILE_APPEND);
+        foreach ($this->migrations as $migration) {
+            if ($migration['id'] === 0) {
+                // new
+                $prep = $this->db->prepare("INSERT INTO `{$this->table}` (`created_at`,`name`,`author`,`status`) "
+                    . "VALUES (:time, :name, :author, :status)");
+                $prep->execute([
+                    ':time' => $migration['time'],
+                    ':name' => $migration['name'],
+                    ':author' => $migration['author'],
+                    ':status' => $migration['status'],
+                ]);
+            } else if ($migration['id'] === -100) {
+                // delete
+                $prep = $this->db->prepare("DELETE FROM `{$this->table}` WHERE `id` = :id");
+                $prep->execute([':id' => $migration['id']]);
+            } else {
+                // update
+                $prep = $this->db->prepare("UPDATE `{$this->table}` SET `status` = :status WHERE `id` = :id");
+                $prep->execute([':id' => $migration['id'], ':status' => $migration['status']]);
+            }
         }
     }
 
@@ -658,27 +711,26 @@ class migration_{$name} extends MigrationObject
 
     function apply()
     {
-        // todo your code here
-        // examples:
-        // \$this->createTable('test', [
-        //      '`id` BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT',
-        //      '`str` VARCHAR(120) NOT NULL',
-        //      '`num` FLOAT NOT NULL',
-        // ]);
-        // \$this->addColumn('test', 'column_name',  'TEXT NOT NULL AFTER `str`');
-        // \$this->renameColumn('test', 'column', 'created_at');
-        // \$this->retypeColumn('test', 'created_at', 'int(11)', false, '1481383022');
-        // \$this->execute("INSERT INTO `test` (`str`, `num`, `created_at`) VALUES ('pum purum', '12.5', time())");
-        // if the method doesn't return true, then migration is failed
-        return true;
+//      todo your code here
+//      examples:
+//      \$this->createTable('test', [
+//          "`id` BIGINT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT",
+//          "`str` VARCHAR(120) NOT NULL",
+//          "`num` FLOAT NOT NULL",
+//          "`num2` INT NOT NULL DEFAULT '0'",
+//      ]);
+//      \$this->addColumn('test', 'column_name',  "TEXT NOT NULL AFTER `str`");
+//      \$this->renameColumn('test', 'column', 'created_at');
+//      \$this->retypeColumn('test', 'created_at', 'int(11)', false, '1481383022');
+//      \$this->execute("INSERT INTO `test` (`str`, `num`, `created_at`) VALUES ('pum purum', '12.5', time())");
+        return true; //if the method doesn't return true, then migration is failed
     }
 
     function revert()
     {
-        // todo your code here
-        // example
-        // \$this->dropTable('table_name');
-        // \$this->dropColumn('table_name', 'column_name');
+//      todo your code here
+//      \$this->dropTable('table_name');
+//      \$this->dropColumn('table_name', 'column_name');
         return true;
     }
 
@@ -1088,14 +1140,14 @@ class MigrationObject {
  *      'cyan', 'light_cyan', 'red', 'light_red', 'purple', 'light_purple', 'brown', 'yellow', 'light_gray', 'white'
  * @param String $background 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'light_gray'
  */
-function ech($str, $color = '', $background = '')
+function ech($str, $color = '', $background = 'black')
 {
         $colors = ['black' => '0;30', 'dark_gray' => '1;30', 'blue' => '0;34',
             'light_blue' => '1;34', 'green' => '0;32', 'light_green' => '1;32',
             'cyan' => '0;36', 'light_cyan' => '1;36', 'red' => '0;31',
             'light_red' => '1;31', 'purple' => '0;35', 'light_purple' => '1;35',
             'brown' => '0;33', 'yellow' => '1;33', 'light_gray' => '0;37', 'white' => '1;37'];
-        $backgrounds = ['black' => '40', 'red' => '41', 'green' => '42', 'yellow' => '43',
+        $backgrounds = ['black' => '30', 'red' => '41', 'green' => '42', 'yellow' => '43',
             'blue' => '44', 'magenta' => '45', 'cyan' => '46', 'light_gray' => '47'];
         if (!empty($colors[$color])) {
             $str = "\033[" . $colors[$color] . "m" . $str;
@@ -1104,6 +1156,23 @@ function ech($str, $color = '', $background = '')
             $str = "\033[" . $backgrounds[$background] . "m" . $str;
         }
         echo $str . "\033[0m";
+}
+
+/**
+ * Reads line from terminal
+ * @param $prompt
+ * @param string $color
+ * @return string
+ */
+function input($prompt, $color = '')
+{
+    ech($prompt, $color);
+    if (PHP_OS == 'WINNT') {
+        $line = stream_get_line(STDIN, 1024, PHP_EOL);
+    } else {
+        $line = readline('');
+    }
+    return $line;
 }
 
 
