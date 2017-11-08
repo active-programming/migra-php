@@ -64,7 +64,7 @@ $ ./migra create my_first_migration
     Migration '1481366582_my_first_migration' created (.../migrations/1481366582_my_first_migration.php)
 ```
 
-Will looks like:
+New migration will look like:
 
 ```
 <?php
