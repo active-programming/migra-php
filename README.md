@@ -80,10 +80,10 @@ class migration_1481366582_my_first_migration extends MigrationObject
     {
         // todo your code here
         // examples:
-        // \$this->createTable('test', ["`id` int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT", "`str` varchar(120) NOT NULL", "`num` float NOT NULL"]);
-        // \$this->addColumn('test', 'column',  'float NOT NULL');
-        // \$this->renameColumn('test', 'column', 'created_at');
-        // \$this->retypeColumn('test', 'created_at', 'int(11)', false, '1481383022');
+        // $this->createTable('test', ["`id` int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT", "`str` varchar(120) NOT NULL", "`num` float NOT NULL"]);
+        // $this->addColumn('test', 'column',  'float NOT NULL');
+        // $this->renameColumn('test', 'column', 'created_at');
+        // $this->retypeColumn('test', 'created_at', 'int(11)', false, '1481383022');
         // if the method doesn't return true, then migration is failed
         return true;
     }
@@ -92,8 +92,8 @@ class migration_1481366582_my_first_migration extends MigrationObject
     {
         // todo your code here
         // example
-        // \$this->dropTable('test');
-        // \$this->dropColumn('table_name', 'column_name');
+        // $this->dropTable('test');
+        // $this->dropColumn('table_name', 'column_name');
         return true;
     }
 
