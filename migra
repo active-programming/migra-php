@@ -649,7 +649,7 @@ class MigraPhp
     private function saveHistory()
     {
         ksort($this->migrations);
-        foreach ($this->migrations as $migration) {
+        foreach ($this->migrations as $k => $migration) {
             if ($migration['id'] === 0) {
                 // new
                 $prep = $this->db->prepare("INSERT INTO `{$this->table}` (`created_at`,`name`,`author`,`status`) "
@@ -660,6 +660,10 @@ class MigraPhp
                     ':author' => $migration['author'],
                     ':status' => $migration['status'],
                 ]);
+                // get inserted id
+                $sth = $this->db->query('SELECT LAST_INSERT_ID()');
+                $newId = $sth->fetchColumn();
+                $this->migrations[$k]['id'] = $newId;
             } else if ($migration['id'] === -100) {
                 // delete
                 $prep = $this->db->prepare("DELETE FROM `{$this->table}` WHERE `id` = :id");
